@@ -1,17 +1,32 @@
 use std::ops::*;
 
 /// Functionality that should be shared between all vector types.
-pub trait Vec<T>: Sized + Copy
-    + Neg<Output=Self> + Mul<T, Output=Self> + Add<Self, Output=Self> + Sub<Self, Output=Self>
-    + Mul<T, Output=Self> + Div<T, Output=Self> + MaxMin + Zero + One + Clamp
+pub trait Vec<T>:
+    Sized
+    + Copy
+    + Neg<Output = Self>
+    + Mul<T, Output = Self>
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + Mul<T, Output = Self>
+    + Div<T, Output = Self>
+    + MaxMin
+    + Zero
+    + One
+    + Clamp
 {
     type Dimension: Dimension;
     type Vec2: Vec2<T>;
     type Vec3: Vec3<T>;
     fn dot(&self, other: Self) -> T;
     fn magnitude(&self) -> T;
+    fn magnitude_squared(&self) -> T;
     fn abs(&self) -> Self;
     fn normalized(&self) -> Self;
+    fn euc_mod(&self, other: Self) -> Self;
+    fn round(&self) -> Self;
 }
 
 /// Functionality that must be implmeented by 3D vectors.
@@ -46,7 +61,9 @@ impl Dimension for Dim3D {}
 
 /// Return the maximum or minimum of `self` and `other`.
 pub trait MaxMin {
+    #[inline(always)]
     fn max(&self, other: Self) -> Self;
+    #[inline(always)]
     fn min(&self, other: Self) -> Self;
 }
 
@@ -68,43 +85,40 @@ impl MaxMin for f64 {
     }
 }
 
-/// The multiplicative identity.
-pub trait One {
-    fn one() -> Self;
-}
-
-impl One for f32 {
-    fn one() -> Self { 1.0 }
-}
-
-impl One for f64 {
-    fn one() -> Self { 1.0 }
-}
-
 /// The additive identity.
 pub trait Zero {
+    #[inline(always)]
     fn zero() -> Self;
 }
 
 impl Zero for f32 {
-    fn zero() -> Self { 0.0 }
+    fn zero() -> Self {
+        0.0
+    }
 }
 
 impl Zero for f64 {
-    fn zero() -> Self { 0.0 }
+    fn zero() -> Self {
+        0.0
+    }
 }
 
-/// Multiply by half.
-pub trait PointFive {
-    fn point_five() -> Self;
+/// The multiplicative identity.
+pub trait One {
+    #[inline(always)]
+    fn one() -> Self;
 }
 
-impl PointFive for f32 {
-    fn point_five() -> Self { 0.5 }
+impl One for f32 {
+    fn one() -> Self {
+        1.0
+    }
 }
 
-impl PointFive for f64 {
-    fn point_five() -> Self { 0.5 }
+impl One for f64 {
+    fn one() -> Self {
+        1.0
+    }
 }
 
 /// Linear interpolate between self and other with a factor
@@ -114,7 +128,8 @@ pub trait Lerp {
 }
 
 impl<T> Lerp for T
-where T: Copy + Mul<T, Output=T> + Sub<T, Output=T> + Add<T, Output=T> + One
+where
+    T: Copy + Mul<T, Output = T> + Sub<T, Output = T> + Add<T, Output = T> + One,
 {
     fn lerp(&self, other: Self, factor: Self) -> Self {
         *self * (T::one() - factor) + other * factor
@@ -128,6 +143,7 @@ pub trait Clamp {
 
 /// Raises `2^(self)`
 pub trait Exp2 {
+    #[inline(always)]
     fn exp2(&self) -> Self;
 }
 
@@ -145,6 +161,7 @@ impl Exp2 for f64 {
 
 /// Returns log base 2 of self.
 pub trait Log2 {
+    #[inline(always)]
     fn log2(&self) -> Self;
 }
 
@@ -168,7 +185,7 @@ pub trait Rotation<V> {
     fn rotate_vec(&self, v: V) -> V;
 }
 
-#[cfg(feature="vek")]
+#[cfg(feature = "vek")]
 pub mod vek_integration {
     use super::*;
 
@@ -179,19 +196,27 @@ pub mod vek_integration {
     }
 
     impl<T: Zero> Zero for vek::vec::Vec2<T> {
-        fn zero() -> Self { vek::vec::Vec2::new(T::zero(), T::zero()) }
+        fn zero() -> Self {
+            vek::vec::Vec2::new(T::zero(), T::zero())
+        }
     }
 
     impl<T: Zero> Zero for vek::vec::Vec3<T> {
-        fn zero() -> Self { vek::vec::Vec3::new(T::zero(), T::zero(), T::zero()) }
+        fn zero() -> Self {
+            vek::vec::Vec3::new(T::zero(), T::zero(), T::zero())
+        }
     }
 
     impl<T: One> One for vek::vec::Vec2<T> {
-        fn one() -> Self { vek::vec::Vec2::new(T::one(), T::one()) }
+        fn one() -> Self {
+            vek::vec::Vec2::new(T::one(), T::one())
+        }
     }
 
     impl<T: One> One for vek::vec::Vec3<T> {
-        fn one() -> Self { vek::vec::Vec3::new(T::one(), T::one(), T::one()) }
+        fn one() -> Self {
+            vek::vec::Vec3::new(T::one(), T::one(), T::one())
+        }
     }
 
     impl<T: PartialOrd + Copy> MaxMin for vek::vec::Vec2<T> {
@@ -256,12 +281,24 @@ pub mod vek_integration {
                     vek::vec::Vec2::magnitude(*self)
                 }
 
+                fn magnitude_squared(&self) -> $inner_t {
+                    vek::vec::Vec2::magnitude_squared(*self)
+                }
+
                 fn abs(&self) -> Self {
                     vek::vec::Vec2::new(self.x.abs(), self.y.abs())
                 }
 
                 fn normalized(&self) -> Self {
                     vek::vec::Vec2::normalized(*self)
+                }
+
+                fn euc_mod(&self, other: Self) -> Self {
+                    vek::vec::Vec2::new(self.x.rem_euclid(other.x), self.y.rem_euclid(other.y))
+                }
+
+                fn round(&self) -> Self {
+                    vek::vec::Vec2::new(self.x.round(), self.y.round())
                 }
             })+
         }
@@ -283,12 +320,24 @@ pub mod vek_integration {
                     vek::vec::Vec3::magnitude(*self)
                 }
 
+                fn magnitude_squared(&self) -> $inner_t {
+                    vek::vec::Vec3::magnitude_squared(*self)
+                }
+
                 fn abs(&self) -> Self {
                     vek::vec::Vec3::new(self.x.abs(), self.y.abs(), self.z.abs())
                 }
 
                 fn normalized(&self) -> Self {
                     vek::vec::Vec3::normalized(*self)
+                }
+
+                fn euc_mod(&self, other: Self) -> Self {
+                    vek::vec::Vec3::new(self.x.rem_euclid(other.x), self.y.rem_euclid(other.y), self.z.rem_euclid(other.z))
+                }
+
+                fn round(&self) -> Self {
+                    vek::vec::Vec3::new(self.x.round(), self.y.round(), self.z.round())
                 }
             })+
         }
@@ -334,22 +383,21 @@ pub mod vek_integration {
     }
 }
 
-#[cfg(not(feature="vek"))]
+#[cfg(not(feature = "vek"))]
 impl Clamp for f32 {
     fn clamp(&self, low: Self, high: Self) -> Self {
         self.max(low).min(high)
     }
 }
 
-#[cfg(not(feature="vek"))]
+#[cfg(not(feature = "vek"))]
 impl Clamp for f64 {
     fn clamp(&self, low: Self, high: Self) -> Self {
         self.max(low).min(high)
     }
 }
 
-
-#[cfg(feature="nalgebra")]
+#[cfg(feature = "nalgebra")]
 pub mod nalgebra_integration {
     use super::*;
     use nalgebra as na;
@@ -357,7 +405,10 @@ pub mod nalgebra_integration {
 
     impl<T: PartialOrd + Copy + Debug + 'static> Clamp for na::Vector2<T> {
         fn clamp(&self, low: Self, high: Self) -> Self {
-            na::Vector2::new(na::clamp(self.x, low.x, high.x), na::clamp(self.y, low.y, high.y))
+            na::Vector2::new(
+                na::clamp(self.x, low.x, high.x),
+                na::clamp(self.y, low.y, high.y),
+            )
         }
     }
 
@@ -366,38 +417,47 @@ pub mod nalgebra_integration {
             na::Vector3::new(
                 na::clamp(self.x, low.x, high.x),
                 na::clamp(self.y, low.y, high.y),
-                na::clamp(self.z, low.z, high.z))
+                na::clamp(self.z, low.z, high.z),
+            )
         }
     }
 
     impl<T: Zero + PartialEq + Copy + Debug + 'static> Zero for na::Vector2<T> {
-        fn zero() -> Self { na::Vector2::new(T::zero(), T::zero()) }
+        fn zero() -> Self {
+            na::Vector2::new(T::zero(), T::zero())
+        }
     }
 
     impl<T: Zero + PartialEq + Copy + Debug + 'static> Zero for na::Vector3<T> {
-        fn zero() -> Self { na::Vector3::new(T::zero(), T::zero(), T::zero()) }
+        fn zero() -> Self {
+            na::Vector3::new(T::zero(), T::zero(), T::zero())
+        }
     }
 
     impl<T: One + PartialEq + Copy + Debug + 'static> One for na::Vector2<T> {
-        fn one() -> Self { na::Vector2::new(T::one(), T::one()) }
+        fn one() -> Self {
+            na::Vector2::new(T::one(), T::one())
+        }
     }
 
     impl<T: One + PartialEq + Copy + Debug + 'static> One for na::Vector3<T> {
-        fn one() -> Self { na::Vector3::new(T::one(), T::one(), T::one()) }
+        fn one() -> Self {
+            na::Vector3::new(T::one(), T::one(), T::one())
+        }
     }
 
     impl<T: PartialOrd + Copy + Debug + 'static> MaxMin for na::Vector2<T> {
         fn max(&self, other: Self) -> Self {
             na::Vector2::new(
                 *na::partial_max(&self.x, &other.x).unwrap_or(&self.x),
-                *na::partial_max(&self.y, &other.y).unwrap_or(&self.y)
+                *na::partial_max(&self.y, &other.y).unwrap_or(&self.y),
             )
         }
 
         fn min(&self, other: Self) -> Self {
             na::Vector2::new(
                 *na::partial_min(&self.x, &other.x).unwrap_or(&self.x),
-                *na::partial_min(&self.y, &other.y).unwrap_or(&self.y)
+                *na::partial_min(&self.y, &other.y).unwrap_or(&self.y),
             )
         }
     }
@@ -407,7 +467,7 @@ pub mod nalgebra_integration {
             na::Vector3::new(
                 *na::partial_max(&self.x, &other.x).unwrap_or(&self.x),
                 *na::partial_max(&self.y, &other.y).unwrap_or(&self.y),
-                *na::partial_max(&self.z, &other.z).unwrap_or(&self.z)
+                *na::partial_max(&self.z, &other.z).unwrap_or(&self.z),
             )
         }
 
@@ -415,7 +475,7 @@ pub mod nalgebra_integration {
             na::Vector3::new(
                 *na::partial_min(&self.x, &other.x).unwrap_or(&self.x),
                 *na::partial_min(&self.y, &other.y).unwrap_or(&self.y),
-                *na::partial_min(&self.z, &other.z).unwrap_or(&self.z)
+                *na::partial_min(&self.z, &other.z).unwrap_or(&self.z),
             )
         }
     }
@@ -462,12 +522,24 @@ pub mod nalgebra_integration {
                     na::Vector2::magnitude(self)
                 }
 
+                fn magnitude_squared(&self) -> $inner_t {
+                    na::Vector2::magnitude_squared(self)
+                }
+
                 fn abs(&self) -> Self {
                     na::Vector2::new(self.x.abs(), self.y.abs())
                 }
 
                 fn normalized(&self) -> Self {
                     na::Vector2::normalize(self)
+                }
+
+                fn euc_mod(&self, other: Self) -> Self {
+                    na::Vector2::new(self.x.rem_euclid(other.x), self.y.rem_euclid(other.y))
+                }
+
+                fn round(&self) -> Self {
+                    na::Vector2::new(self.x.round(), self.y.round())
                 }
             })+
         }
@@ -489,12 +561,24 @@ pub mod nalgebra_integration {
                     na::Vector3::magnitude(self)
                 }
 
+                fn magnitude_squared(&self) -> $inner_t {
+                    na::Vector2::magnitude_squared(self)
+                }
+
                 fn abs(&self) -> Self {
                     na::Vector3::new(self.x.abs(), self.y.abs(), self.z.abs())
                 }
 
                 fn normalized(&self) -> Self {
                     na::Vector3::normalize(self)
+                }
+
+                fn euc_mod(&self, other: Self) -> Self {
+                    na::Vector3::new(self.x.rem_euclid(other.x), self.y.rem_euclid(other.y), self.z.rem_euclid(other.z))
+                }
+
+                fn round(&self) -> Self {
+                    na::Vector3::new(self.x.round(), self.y.round(), self.z.round())
                 }
             })+
         }
